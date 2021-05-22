@@ -2,8 +2,9 @@
 
 ## Coming Summer 2021!
 
-(after I finish scrubbing my slides to make sure I'm not sharing anything that
-isn't mine to share)
+I'm scrubbing my slides to make sure I'm not sharing anything that isn't mine
+to share. I expect this process to be complete by the end of June 2021. I'll
+add the slidedecks to the repository as the process progresses.
 
 ---
 
