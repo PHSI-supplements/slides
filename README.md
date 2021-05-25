@@ -6,6 +6,9 @@ I'm scrubbing my slides to make sure I'm not sharing anything that isn't mine
 to share. I expect this process to be complete by the end of June 2021. I'll
 add the slidedecks to the repository as the process progresses.
 
+After I've finished with the slides, I'll transcribe my hand-written pages (and
+pages and pages) of worked examples for use during lecture and/or recitation.
+
 ---
 
 This repository will contain lecture slides to enhance your use of the
