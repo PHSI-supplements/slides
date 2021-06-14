@@ -3,7 +3,7 @@
 ## Coming Summer 2021!
 
 I'm scrubbing my slides to make sure I'm not sharing anything that isn't mine
-to share. I expect this process to be complete by the end of June 2021. I'll
+to share. I expect this process to be complete in early July 2021. I'll
 add the slidedecks to the repository as the process progresses.
 
 After I've finished with the slides, I'll transcribe my hand-written pages (and
@@ -20,7 +20,11 @@ chapters in the publication. If you are looking for lecture slides covering the
 topics in chapter *NN*, you will find them in the `chapNN.pptx` file. Note
 that, just as chapters 8 and 11 are divided into two parts each, the slides for
 these topics are divided into `chapNNa.pptx` and `chapNNb.pptx` to facilitate
-re-ordering of subject material based on how you wish to conduct your course.
+re-ordering of subject material based on how you wish to conduct your course
+(for example, I like to cover the first half of chapter 11, buffer overflow,
+immediately after covering chapter 6, which covers the assembly code view of
+arrays, loops, the program stack, and procedure calls/returns (among other
+material)).
 
 If you have not adopted
 [*Programming at the Hardware/Software Interface*](https://www.greatriverlearning.com/product-details/1846)
