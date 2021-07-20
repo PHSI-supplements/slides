@@ -1,0 +1,35 @@
+@startuml
+!pragma teoz true
+!theme materia
+skinparam style strictuml
+participant Client
+participant Handler
+participant Listener
+
+Listener    ->      Listener    : accept
+& Client    ->      Listener    : connect
+hnote over Listener             : connection\naccepted
+
+create Handler
+Listener    ->      Handler     : \tfork
+& Listener  ->      Listener    :
+rnote over Handler              : closes unneeded\nfile descriptors
+& rnote over Listener           : closes unneeded\nfile descriptors
+
+Handler     ->      Handler     : read
+& Client    ->      Handler     : write(hostname)
+& Listener  ->      Listener    : accept
+hnote over Handler              : hostname\nread in
+
+Client      <-      Handler     : \twrite(prompt)
+& Client    ->      Client      : read
+hnote over Client               : prompt\nreceived
+
+Client      ->      Handler     : write(username)
+
+... Client Participates in Chat Session ...
+
+Client      ->      Handler     : write("EXIT")
+Handler     ->      Handler     : exit(0)
+destroy Handler
+@enduml

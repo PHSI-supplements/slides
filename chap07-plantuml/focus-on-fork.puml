@@ -1,0 +1,12 @@
+@startuml
+!pragma teoz true
+!theme materia
+skinparam style strictuml
+participant Handler
+participant Listener
+
+create Handler
+Listener    ->      Handler     : \tfork
+& Listener  ->      Listener    :
+
+@enduml

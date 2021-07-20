@@ -1,0 +1,62 @@
+@startuml
+!pragma teoz true
+!theme materia
+skinparam style strictuml
+participant "Client 1" as Client1
+participant "Handler 1" as Handler1
+participant Listener
+participant "Handler 2" as Handler2
+participant "Client 2" as Client2
+
+Client1     ->      Listener    : connect
+& Listener  ->      Listener    : accept
+hnote over Listener             : connection\naccepted
+
+create Handler1
+Listener    ->      Handler1    : \tfork
+& Listener  ->      Listener    :
+rnote over Handler1             : closes unneeded\nfile descriptors
+& rnote over Listener           : closes unneeded\nfile descriptors
+
+Handler1    ->      Handler1    : read
+& Client1   ->      Handler1    : write(hostname)
+& Listener  ->      Listener    : accept
+
+& Client2   ->      Listener    : \t\tconnect
+
+hnote over Handler1             : hostname\nread in
+
+create Handler2
+Listener    ->      Handler2    : fork
+& Listener  ->      Listener    :
+
+& Client1   ->      Client1     : read
+& Client1   <-      Handler1    : \twrite(prompt)
+hnote over Client1              : prompt\nreceived
+
+rnote over Handler2             : closes unneeded\nfile descriptors
+& rnote over Listener           : closes unneeded\nfile descriptors
+
+& note over Client1             : user goes to lunch
+
+Handler2    ->      Handler2    : read
+& Client2   ->      Handler2    : \twrite(hostname)
+& Listener  ->      Listener    : accept
+hnote over Handler2             : hostname\nread in
+
+Client2     ->      Client2     : read
+& Client2   <-      Handler2    : write(prompt)
+hnote over Client2              : prompt\nreceived
+
+Client2     ->      Handler2    : \twrite(username)
+Handler2    ->      Handler2    : read()
+hnote over Handler2             : username\nread in
+
+...Client 2 Participates in Chat Session...
+...3 hours later...
+
+Client1     ->      Handler1    : write(username)
+& Handler1  ->      Handler1    : read
+hnote over Handler1             : username\nread in
+
+@enduml

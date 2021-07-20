@@ -1,0 +1,38 @@
+@startuml
+!pragma teoz true
+!theme materia
+skinparam style strictuml
+participant "Client 1" as Client1
+participant Server
+participant "Client 2" as Client2
+
+Client1     ->      Server  : connect
+& Server    ->      Server  : accept
+hnote over Server           : connection\naccepted
+
+Client1     ->      Server  : write(hostname)
+& Server    ->      Server  : read
+hnote over Server           : hostname\nread in
+
+& Client2   ->      Server  : \t\tconnect
+Client2     ->      Server  :\t\twrite(hostname)
+
+Client1     ->      Client1 : read
+& Client1   <-      Server  : \twrite(prompt)
+hnote over Client1          : prompt\nreceived
+
+Client1     ->      Server  : write(username)
+& Server    ->      Server  : read
+hnote over Server           : username\nread in
+
+Server      ->      Server  : accept
+hnote over Server           : connection\naccepted
+
+Server    ->      Server  : read
+hnote over Server           : hostname\nread in
+
+Client2     ->      Client2 : read
+& Client2   <-      Server  : write(prompt)
+hnote over Client2          : prompt\nreceived
+
+@enduml

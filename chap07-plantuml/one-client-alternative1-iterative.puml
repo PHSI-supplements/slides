@@ -1,0 +1,21 @@
+@startuml
+!theme materia
+skinparam style strictuml
+participant Client
+participant Server
+
+Server      ->      Server  : accept
+Server      ->      Server  : read
+
+Client    ->      Server  : connect
+hnote over Server           : connection\naccepted
+
+Client    ->      Server  : write(hostname)
+hnote over Server       : hostname\nread in
+
+Client      <-      Server  : \twrite(prompt)
+& Client    ->  Client      : read
+hnote over Client           : prompt\nreceived
+
+Client      ->      Server  : write(username)
+@enduml
