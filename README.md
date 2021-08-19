@@ -3,7 +3,7 @@
 ## Coming Summer 2021!
 
 I'm scrubbing my slides to make sure I'm not sharing anything that isn't mine
-to share. I expect this process to be complete in early August 2021. I'll
+to share. I this process will be complete in the fall semester 2021. I'll
 add the slidedecks to the repository as the process progresses.
 
 After I've finished with the slides, I'll transcribe my hand-written pages (and
