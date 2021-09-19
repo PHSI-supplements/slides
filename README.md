@@ -1,6 +1,6 @@
 # slides
 
-## Coming Summer 2021!
+## Coming Fall 2021!
 
 I'm scrubbing my slides to make sure I'm not sharing anything that isn't mine
 to share. I this process will be complete in the fall semester 2021. I'll
