@@ -1,0 +1,237 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{bigdelim}
+
+\begin{document}
+
+\title{Chapter 2 Worked Examples}
+\date{}
+\maketitle
+
+\section{ASCII Table}
+
+See Table~2.2 in the textbook, or \texttt{man ascii} to view the ASCII table.
+Some things to note:
+\begin{itemize}
+\item 7 bits per ASCII character (a \texttt{char} uses 8 bits to round-up to an
+    integral number of bytes (1 byte))
+\item Includes printable and non-printable characters
+\item Within the range of decimal numerals, the numerals are in-order; within
+    the range of uppercase letters, the letters are in alphabetical order;
+    within the range of lowercase letters, the letters are in alphabetical order
+    \begin{itemize}
+    \item Thus, `I' $<$ `J'
+    \item But `i' $>$ `J'
+    \end{itemize}
+\item Notice that we used integer comparisons -- \texttt{char} is an integer
+    type! Anything that you can do to an \texttt{int}, you can do to a
+    \texttt{char}
+    \begin{itemize}
+    \item Compare, add, subtract, index an array\dots
+    \end{itemize}
+\end{itemize}
+
+\section{Number Bases}
+
+Note: in C, if a literal begins with 1-9, it is a decimal literal (base 10). If
+a literal begins with 0 followed by 0-9, it is an octal literal (base 8); we
+will not use octal. If a literal begins with 0x, it is a hexadecimal literal
+(base 16). As a gcc extension, if a literal begins with 0b, it is a binary
+literal.\footnote{The draft C23 standard makes binary literals starting with 0b
+part of the standard.}
+
+\subsection{Weighted Sums}
+
+\begin{tabular}{rrl}
+Base 10 & $3798_{10}$           & $3 \times 10^3 + 7 \times 10^2 + 9 \times 10^1 + 8 \times 10^0$ \\
+Base 16 & $\mathrm{ED6}_{16}$   & $14 \times 16^2 + 13 \times 16^1 + 6 \times 16^0$ \\
+Base 2  & $1110\ 1101\ 0110_2$  & $1 \times 2^{11} + 1 \times 2^{10} + 1 \times 2^9 + 0 \times 2^8 + \dots + 1 \times 2^1 + 0 \times 2^0$
+\end{tabular}
+
+\subsection{Conversion Between Radices}
+
+\subsubsection{Binary to Decimal}
+
+Apply weighted sum technique:
+
+\begin{align*}
+1110\ 1101\ 0110_2 &= 2^{11} &&+ 2^{10} &&+ 2^9 &&+ 2^7 &&+ 2^6 &&+ 2^4 &&+ 2^2 &&+ 2^1 \\
+    &= 2048 &&+ 1024 &&+ 512 &&+ 128 &&+ 64 &&+ 16 &&+ 4 &&+ 2 \\
+    &= 3798_{10}
+\end{align*}
+
+\begin{align*}
+1001\ 1111\ 0111_2 &= 2^{11} &&+ 2^8 &&+ 2^7 &&+ 2^6 &&+ 2^5 &&+ 2^4 &&+ 2^2 &&+ 2^1 &&+ 2^0\\
+    &= 2048 &&+ 256 &&+ 128 &&+ 64 &&+ 32 &&+ 16 &&+ 4 &&+ 2 &&+ 1 \\
+    &= 2551_{10}
+\end{align*}
+
+\subsubsection{Decimal to Binary}
+
+\textbf{Repeated Division}
+
+Divide by 2; the remainder of each step becomes a bit, starting at the
+least-significant bit:
+
+\begin{align*}
+3798_{10} \div 2    &= 1899\ r\ 0\ (ones\ place) \\
+1899 \div 2         &= 949\ r\ 1\ (twos\ place) \\
+949 \div 2          &= 474\ r\ 1\ (fours\ place) \\
+474 \div 2          &= 237\ r\ 0\ (eights\ place) \\
+237 \div 2          &= 118\ r\ 1\ (sixteens\ place) \\
+118 \div 2          &= 59\ r\ 0\ (thirty-twos\ place) \\
+59 \div 2           &= 29\ r\ 1\ (sixty-fours\ place) \\
+29 \div 2           &= 14\ r\ 1\ (128s\ place) \\
+14 \div 2           &= 7\ r\ 0\ (256s\ place) \\
+7 \div 2            &= 3\ r\ 1\ (512s\ place) \\
+3 \div 2            &= 1\ r\ 1\ (1024s\ place) \\
+1 \div 2            &= 0\ r\ \underline{1\ (2048s\ place)} \\
+                    &\hspace{1cm}1110\ 1101\ 0110_2
+\end{align*}
+
+\begin{align*}
+2551_{10} \div 2    &= 1275\ r\ 1\ (ones\ place) \\
+1275 \div 2         &= 637\ r\ 1\ (twos\ place) \\
+736 \div 2          &= 318\ r\ 1\ (fours\ place) \\
+318 \div 2          &= 159\ r\ 0\ (eights\ place) \\
+159 \div 2          &= 79\ r\ 1\ (sixteens\ place) \\
+79 \div 2           &= 39\ r\ 1\ (thirty-twos\ place) \\
+39 \div 2           &= 19\ r\ 1\ (sixty-fours\ place) \\
+19 \div 2           &= 9\ r\ 1\ (128s\ place) \\
+9 \div 2            &= 4\ r\ 1\ (256s\ place) \\
+4 \div 2            &= 2\ r\ 0\ (512s\ place) \\
+2 \div 2            &= 1\ r\ 0\ (1024s\ place) \\
+1 \div 2            &= 0\ r\ \underline{1\ (2048s\ place)} \\
+                    &\hspace{1cm}1001\ 1111\ 0111_2
+\end{align*}
+
+\textbf{Repeated Subtraction}
+
+\begin{table}
+\centering
+\begin{tabular}{|c|r|c|c|r|}\cline{1-2}\cline{4-5}
+$2^0$ & 1 & \phantom{extra space} & $2^{10}$ & 1024 \\ \cline{1-2}\cline{4-5}
+$2^1$ &   2 & & $2^{11}$ &    2048 \\ \cline{1-2}\cline{4-5}
+$2^2$ &   4 & & $2^{12}$ &    4096 \\ \cline{1-2}\cline{4-5}
+$2^3$ &   8 & & $2^{13}$ &    8192 \\ \cline{1-2}\cline{4-5}
+$2^4$ &  16 & & $2^{14}$ &  16,384 \\ \cline{1-2}\cline{4-5}
+$2^5$ &  32 & & $2^{15}$ &  32,768 \\ \cline{1-2}\cline{4-5}
+$2^6$ &  64 & & $2^{16}$ &  65,536 \\ \cline{1-2}\cline{4-5}
+$2^7$ & 128 & & $2^{17}$ & 131,072 \\ \cline{1-2}\cline{4-5}
+$2^8$ & 256 & & $2^{18}$ & 262,144 \\ \cline{1-2}\cline{4-5}
+$2^9$ & 512 & & $2^{19}$ & 524,288 \\ \cline{1-2}\cline{4-5}
+\end{tabular}
+\caption{First 20 Powers of Two}
+\end{table}
+
+Subtract by powers-of-two; if subtracting by the next-greatest power-of-two
+yields a non-negative difference then subtract and make the next bit (starting
+at the most-significant bit) a 1; otherwise don't subtract and make the next bit
+a 0. This technique is useful for relatively-small values, as it requires
+knowing powers-of-two.\footnote{Personally, I have 1..8192 memorized; after
+that it's ``sixteen-thousand-and-change,'' ($2^{14}$)
+``thirty-two-thousand-and-change'' ($2^{15}$),
+``sixty-five-thousand-and-change'' ($2^{16}$), and ``four-million-and-change''
+($2^{32}$).}
+
+\begin{align*}
+3798_{10} - 2048    &= 1750 &\rightarrow& 1\ (2048s\ place) \\
+1750 - 1024         &= 726  &\rightarrow& 1\ (1024s\ place) \\
+726 - 512           &= 214  &\rightarrow& 1\ (512s\ place) \\
+214 - 256           &< 0    &\rightarrow& 0\ (256s\ place) \\
+214 - 128           &= 86   &\rightarrow& 1\ (128s\ place) \\
+86 - 64             &= 22   &\rightarrow& 1\ (sixty-fours\ place) \\
+22 - 32             &< 0    &\rightarrow& 0\ (thirty-twos\ place) \\
+22 - 16             &= 6    &\rightarrow& 1\ (sixteens\ place) \\
+6 - 8               &< 0    &\rightarrow& 0\ (eights\ place) \\
+6 - 4               &= 2    &\rightarrow& 1\ (fours\ place) \\
+2 - 2               &= 0    &\rightarrow& 1\ (twos\ place) \\
+0 - 1               &< 0    &\rightarrow& \underline{0\ (ones\ place)} \\
+                    &       &           & 1110\ 1101\ 0110_2
+\end{align*}
+
+\begin{align*}
+2551_{10} - 2048    &= 503  &\rightarrow& 1\ (2048s\ place) \\
+503 - 1024          &< 0    &\rightarrow& 0\ (1024s\ place) \\
+503 - 512           &< 0    &\rightarrow& 0\ (512s\ place) \\
+503 - 256           &= 247  &\rightarrow& 1\ (256s\ place) \\
+247 - 128           &= 119  &\rightarrow& 1\ (128s\ place) \\
+119 - 64            &= 55   &\rightarrow& 1\ (sixty-fours\ place) \\
+55 - 32             &= 23   &\rightarrow& 1\ (thirty-twos\ place) \\
+23 - 16             &= 7    &\rightarrow& 1\ (sixteens\ place) \\
+7 - 8               &< 0    &\rightarrow& 0\ (eights\ place) \\
+7 - 4               &= 3    &\rightarrow& 1\ (fours\ place) \\
+3 - 2               &= 1    &\rightarrow& 1\ (twos\ place) \\
+1 - 1               &= 1    &\rightarrow& \underline{1\ (ones\ place)} \\
+                    &       &           & 1001\ 1111\ 0111_2
+\end{align*}
+
+\subsubsection{Binary to Hexadecimal, and Hexadecimal to Binary}
+
+\begin{table}
+\centering
+\begin{tabular}{|c|c|c|l}\cline{1-3}
+Hexadecimal & Binary    & Decimal   & \\ \cline{1-3}
+0           & 0000      & 0         & \rdelim \}{10}{*}[BCD range] \\
+1           & 0001      & 1         & \\
+2           & 0010      & 2         & \\
+3           & 0011      & 3         & \\
+4           & 0100      & 4         & \\
+5           & 0101      & 5         & \\
+6           & 0110      & 6         & \\
+7           & 0111      & 7         & \\
+8           & 1000      & 8         & \\
+9           & 1001      & 9         & \\ \cline{3-3}
+A           & 1010      & 10        & \\
+B           & 1011      & 11        & \\
+C           & 1100      & 12        & \\
+D           & 1101      & 13        & \\
+E           & 1110      & 14        & \\
+F           & 1111      & 15        & \\ \cline{1-3}
+\end{tabular}
+\caption{Binary/Hexadecimal Conversion Table}\label{tab:conversion}
+\end{table}
+
+Because each hex-digit corresponds to exactly four bits, no math is necessary.
+Simply (re-create and) use the binary/hex conversion table
+(Table~\ref{tab:conversion}). For example:
+
+\begin{tabbing}
+$1110$\ \= $1101$\ \= $0110_2$\ \= \\
+$\downarrow$ \> $\downarrow$ \> $\downarrow$ \> \\
+E \> D \> 6 \> = $\mathrm{ED6}_{16}$
+\end{tabbing}
+
+\begin{tabbing}
+$\mathrm{9F7}_{16}$ = \= 9\phantom{000} \= F\phantom{000} \= 7\phantom{000} \\
+\> $\downarrow$ \> $\downarrow$ \> $\downarrow$ \\
+\> $1110$\ \> $1101$\ \> $0111_2$
+\end{tabbing}
+
+\subsubsection{Decimal to Hexadecimal, and Hexadecimal to Decimal}
+
+We \textit{could} apply the weighted-sum and repeated-division techniques as
+before:
+
+\begin{align*}
+\mathrm{9F7}_{16} &= 9 \times 16^2 &&+ 15 \times 16^1 &&+ 7 \times 16^0 \\
+    &= 9 \times 256 &&+ 15 \times 16 &&+ 7 \times 1 \\
+    &= 2304 &&+ 240 &&+ 7\\
+    &= 2551_{10}
+\end{align*}
+
+\begin{align*}
+3798_{10} \div 16   &= 237\ r\ 6 &\rightarrow& 6\ (ones\ place) \\
+159 \div 16         &= 14\ r\ 13 &\rightarrow& D\ (sixteens\ place) \\
+14 \div 16          &= 0\ r\ 14 &\rightarrow& \underline{E\ (256s\ place)} \\
+                    &&& \mathrm{ED6}_{16}
+\end{align*}
+
+But it's probably easier to use binary as an intermediate form since we already
+know how to convert between binary \& decimal and between binary \& hexadecimal:
+
+\[\mathrm{9F7}_{16} \leftrightarrow 1001\ 1111\ 0111_2 \leftrightarrow 2551_{10}\]
+
+\[3798_{10} \leftrightarrow 1110\ 1101\ 0110_2 \leftrightarrow \mathrm{ED6}_{16}\]
+
+\end{document}
