@@ -1,6 +1,22 @@
 \documentclass{article}
 \usepackage{amsmath}
 \usepackage{bigdelim}
+\usepackage{fancyhdr}
+
+% \pagestyle{fancy}
+% \fancyfoot{}
+% \lfoot{\copyright\ Christopher A. Bohn}
+% %% (c) 2018-22
+% \rfoot{Page \thepage}
+
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \lfoot{\copyright\ Christopher A. Bohn} % (c) 2018-22
+    \rfoot{Page \thepage}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+\pagestyle{plain}
 
 \begin{document}
 
