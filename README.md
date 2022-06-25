@@ -8,9 +8,10 @@ repository as the process progresses.
 
 ---
 
-This repository will contain lecture slides to enhance your use of the
-[*Programming at the Hardware/Software Interface*](https://www.greatriverlearning.com/product-details/1846)
-textbook by Christopher A. Bohn.
+This repository contains lecture slides and worked examples to enhance your use
+of the [*Programming at the Hardware/Software
+Interface*](https://www.greatriverlearning.com/product-details/1846) textbook by
+Christopher A. Bohn.
 
 The slides `chap01.pptx`, `chap02.pptx`, ..., `chap12.pptx` correspond to the
 chapters in the publication. If you are looking for lecture slides covering the
