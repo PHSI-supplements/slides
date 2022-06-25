@@ -1,13 +1,10 @@
-# slides
+# Slides
 
-## Coming Fall 2021!
-
-I'm scrubbing my slides to make sure I'm not sharing anything that isn't mine
-to share. I this process will be complete in the fall semester 2021. I'll
-add the slidedecks to the repository as the process progresses.
-
-After I've finished with the slides, I'll transcribe my hand-written pages (and
-pages and pages) of worked examples for use during lecture and/or recitation.
+I'm scrubbing my chapters 10 & 12 slides to make sure I'm not sharing anything
+that isn't mine to share. I this process will be complete soon. I also plan to
+make continuous tweaks to the slides if I try a different approach to a topic
+and decide that the new approach works better. I'll add the slidedecks to the
+repository as the process progresses.
 
 ---
 
