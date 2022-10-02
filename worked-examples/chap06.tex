@@ -1,0 +1,290 @@
+\documentclass{article}
+\usepackage{amsmath}
+% \usepackage{cancel}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[procnames]{listings}
+\lstset{language=C, alsolanguage=[x86masm]Assembler, tabsize=4, upquote=true, basicstyle=\ttfamily}
+\newcommand{\function}[1]{\textbf{\lstinline{#1}}}
+
+% \pagestyle{fancy}
+% \fancyfoot{}
+% \lfoot{\copyright\ Christopher A. Bohn}
+% %% (c) 2018-22
+% \rfoot{Page \thepage}
+
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \lfoot{\copyright\ Christopher A. Bohn} % (c) 2018-22
+    \rfoot{Page \thepage}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+\pagestyle{plain}
+
+\newcommand{\carry}{\scriptstyle 1}
+
+\begin{document}
+
+\title{Chapter 6 Worked Examples}
+\date{}
+\maketitle
+
+Any examples that you want to take all the way to assembly code can easily be handled with a compiler on a laptop or on the server (\texttt{gcc -Og -S \dots}).
+Alternatively, you might consider using the ``Compiler Explorer'' website (\href{https://godbolt.org/}{https://godbolt.org/}) -- this will generate the assembly code for nearly any language, for many processors, and with many compilers (if the processor is x86-64 and there's enough code to generate an executable, then it will also produce the output).
+Another nifty thing is that hovering the mouse over a line of assembly (or C) causes the corresponding C (or assembly) code to highlight.
+Select ``C'' as the source language, and unless specified otherwise, select a recent version of ``x86-64 gcc'' or ``x86-64 clang'' as the compiler, with ``-Og'' as the compiler argument.
+
+The code snippets from the textbook are available at \href{https://github.com/PHSI-supplements/textbook-code/tree/main/chap06}{https://github.com/PHSI-supplements/textbook-code/tree/main/chap06}.
+
+\section{A note about registers used in function calls}
+
+While this is covered in more detail when we get to function calls, the textbook examples all occur inside functions (this should be unsurprising).
+To understand which registers correspond to what: students would do well to \textbf{remember} that on x86-64, \texttt{\%rdi} is the first argument, \texttt{\%rsi} is the second argument, and \texttt{\%rax} holds the return value.
+(Remembering this is also beneficial in the lab assignment. *cough* *cough*)
+Some of the examples have three or four arguments -- encourage students to consult Table~6.5 in Chapter~6 to see which registers are used for additional arguments (or, if a function in a lab is reading from a register that doesn't appear to have been written to, it's probably an argument, and students can determine which argument by using that table).
+
+\section{Structured Data}
+
+\subsection{1D Arrays}
+
+\begin{itemize}
+\item Contiguous region of memory with homogeneous data
+\item Size of the array: $number\_of\_elements \times sizeof(element\_type)$
+\item The array variable is a pointer to the 0th element -- the address held by the pointer is the array's \textit{base address}
+\item Address of element $i$: $base\_address + i \times sizeof(element\_type)$
+    \begin{itemize}
+    \item If $i$ is a compile-time constant, gcc will likely use displacement-mode addressing
+    \item If $i$ is a variable, use indexed mode $(R_b, R_i, S)$
+        \begin{itemize}
+            \item $R_b$ is the register that holds the base address (it corresponds to the array variable)
+            \item $R_i$ is the register that holds the index variable ($i$)
+            \item $S$ is the size of the element type (1, 2, 4, or 8)
+        \end{itemize}
+    \end{itemize}
+\item Demonstrate with \function{get_address} and \function{get_value} in \textit{arrays.c} from the GitHub repo
+\item The \function{traverse_array} function in \textit{lecture-examples.c} also demonstrates this
+\item The \function{traverse_array_with_pointers} function demonstrates the relationship between array indexing and pointer arithmetic
+\end{itemize}
+
+Suppose we have \lstinline{int foo[]}, and \lstinline{foo}'s base address is 0x1400. Assuming that \lstinline{sizeof(int)==4}, what is the address of \lstinline{foo[32]}?
+
+\textit{Answer:} $0x1400 + 4 \times 32_{10} = 0x1400 + 4 \times 0x20 = 0x1480$ \\
+
+Suppose we have \lstinline{long bar[]}, and \lstinline{bar}'s base address is 0x1400. Assuming that \lstinline{sizeof(long)==8}, what is the address of \lstinline{foo[14]}?
+
+\textit{Answer:} $0x1400 + 8 \times 14_{10} = 0x1400 + 16_{10} \times 7 = 0x1400 + 0x10 \times 7 = 0x1470$
+
+\subsection{Nested Arrays}
+
+\begin{itemize}
+\item Conceptually, a 2-dimensional array (or $n$-dimensional array) of elements, but memory is 1-dimensional
+\item C views a nested array as an ``array of rows'' -- each row is an array of elements
+    \begin{itemize}
+    \item C stores arrays in row-major order
+    \item Knowing that C stores arrays in row-major order is important now for finding an element
+    \item Knowing that C stores arrays in row-major order will have performance impacts when we get to Chapter 10 (memory)
+    \end{itemize}
+\item Can only use nested arrays if number of columns is known (no problem if number of rows is unknown)
+\item Size of the array: $number\_of\_rows \times sizeof(row) \\ = number\_of\_rows \times number\_of\_columns \times sizeof(element\_type)$
+\item Address of element $i,j$: \\
+\begin{align*}
+&\phantom{==} base\_address\_of\_row\_i + j \times sizeof(element\_type) \\
+&= base\_address + i \times sizeof(row) + j \times sizeof(element\_type) \\
+&= base\_address + i \times number\_of\_columns \times sizeof(element\_type) + j \times sizeof(element\_type) \\
+&= base\_address + \left( i \times number\_of\_columns + j \right) \times sizeof(element\_type)
+\end{align*}
+\end{itemize}
+
+Suppose we have \lstinline{int xyzzy[][48]}, and \lstinline{xyzzy}'s base address is 0x1400. Assuming that \lstinline{sizeof(int)==4}, what is the size of a row?
+
+\textit{Answer:} $48_{10} \times 4 = 0x30 \times 4 = 0b11'0000 << 2 = 0b1100'0000 = 0x\textrm{C}0 = 192_{10}$ bytes
+
+What is the address of \lstinline{xyzzy[8]}?
+
+\textit{Answer:} $0x1400 + 0x\textrm{C}0 \times 8 = 0x1400 + 0b1100'0000 << 3 = \\ 0x1400 + 0b110'0000'0000 = 0x1400 + 0x600 = 0x1\mathrm{A}00$
+
+What is the address of \lstinline{xyzzy[8][3]}?
+
+\textit{Answer:} $0x1\mathrm{A}00 + 3 \times 4 = 0x1\mathrm{A}00 + 0xC = 0x1\mathrm{A}0\textrm{C}$ \\
+
+\function{nested_array1} from \textit{arrays.c}:
+\begin{lstlisting}[language=C]
+long nested_array1(long i, long j) {
+    long bar[5][7];
+    long x=bar[i][j];
+    return x;
+}
+\end{lstlisting}
+becomes (comments demonstrate the address of element i,j)
+\begin{lstlisting}[language={[x86masm]Assembler}]
+nested_array1:                      # 5 rows, 7 columns, 8 bytes/long
+    subq    $176, %rsp
+    leaq    0(,%rdi,8), %rax        # rax = 8*i
+    subq    %rdi, %rax              # rax = 8*i-i = 7*i
+    addq    %rsi, %rax              # rax = 7*i + j
+    movq    -120(%rsp,%rax,8), %rax # base_addr=-120(%rsp), sizeof(long)=8
+    addq    $176, %rsp
+    ret
+\end{lstlisting}
+We can see that $i \times number\_of\_columns + j$ = \lstinline{7*i + j}
+
+The code in \textit{2darray.c} can be used to generate problems in which students determine the nested array's dimensions.
+Set the value of M \& N (but don't show the students), generate the assembly, and then walk through the assembly code to figure out what M \& N are.
+
+\begin{lstlisting}[language=C]
+#define M ...
+#define N ...
+
+long A[M][N];
+long B[N][M];
+
+long foo(long i, long j) {
+    return A[i][j] + B[j][i];
+}
+\end{lstlisting}
+
+The resulting assembly might be
+\begin{lstlisting}[language={[x86masm]Assembler}]
+foo:                                # base addresses in A, B
+    leaq    (%rsi,%rdi,4), %rdx     # rdx = j + 4*i
+    leaq    (%rsi,%rsi,2), %rax     # rax = j + 2*j = 3*j
+    leaq    (%rdi,%rax,2), %rax     # rax = i + 2*(3*j) = i + 6*j
+    movq    B(,%rax,8), %rax        # retrieves element at B + 8*(6*j + i)
+    addq    A(,%rdx,8), %rax        # retrieves element at A + 8*(4*i + j)
+    ret
+\end{lstlisting}
+From this we can see that array A has 4 columns, and array B has 6 columns.
+Therefore, $M=6$ and $N=4$.
+
+\subsection{Iliffe Vectors}
+
+\begin{itemize}
+\item Array of pointers to rows
+\item Used when number of columns is unknown, or if rows don't all have the same number of elements (\textit{i.e.}, a jagged array)
+\item Requires two memory accesses to access element
+    \begin{itemize}
+    \item First index the array of pointers to get the row's base address
+    \item Then index the row
+    \item Contrast with one memory access to retrieve element in nested array
+    \end{itemize}
+\item Declared as \lstinline{type **variable} or \lstinline{type *variable[]}
+    \begin{itemize}
+    \item Contrast with \lstinline{type variable[][]} in nested array
+    \item Both Iliffe vectors and nested arrays accessed as \lstinline{variable[row][column]} -- but the resulting assembly code is very different for the two
+    \end{itemize}
+\end{itemize}
+
+No interesting examples worth discussing -- the array of pointers is a 1D array, and each of the rows is either a 1D array (possibly an Iliffe vector) or a nested array, both of which we've already looked at.
+
+\subsection{Structs (aka Records)}
+
+\begin{itemize}
+\item Contiguous region of memory with hetereogenous data
+\item Each field is a constant number of bytes after the base address -- use displacement-mode addressing
+\item Offset is determined by the sizes of the previous elements and any padding
+\item Fields must be appear in the declared order -- compiler is \textit{not} free to find a more-compact representation
+\item A datatype that requires $k$ bytes must occur at an address divisible by $k$ -- this is why padding is present
+\item The struct must itself have a base address that is divisible by $k_{max}$, where $k_{max}$ is the size if its largest datatype -- this is to guarantee that all fields are properly aligned in memory
+\end{itemize}
+
+Consider:
+
+\begin{lstlisting}[language=C]
+struct foo {
+    int i;
+    int j;
+    long k;
+}
+\end{lstlisting}
+
+The \lstinline{i} field is at the structure's base address.
+The \lstinline{j} field occurs 4 bytes later, because \lstinline{i} requires 4 bytes, and \lstinline{j} must occur at an address divisible by 4 (so no padding is required).
+The \lstinline{k} field occurs 4 bytes later, or 8 bytes after the base address, because \lstinline{i} and \lstinline{j} togetehr require 8 bytes, and \lstinline{k} must occur at an address divisible by 8 (so no padding is required).
+The \lstinline{foo} structure requires $4+4+8=16_{10}$ bytes.
+
+Now consider:
+
+\begin{lstlisting}[language=C]
+struct bar {
+    char c;
+    short s;
+    short t;
+    int i;
+    long l;
+}
+\end{lstlisting}
+
+The \lstinline{c} field is at the structure's base address.
+The \lstinline{s} field needs to be at an address divisible by 2, so there's a byte of ``padding'' (unused space) after \lstinline{c} -- this places \lstinline{s} at 2 bytes after the base address.
+The \lstinline{t} field is two bytes later, 4 bytes after the base address.
+The \lstinline{i} field cannot be 6 bytes after the base address because it needs to be at an address divisible by 4.
+By adding 2 bytes of padding after \lstinline{t}, \lstinline{i} is 8 bytes after the base address.
+Similarly, there are 4 bytes of padding after \lstinline{i} so that \lstinline{l} is 16 bytes after the base address.
+The \lstinline{bar} structure requires 24 byte.
+
+Now consider:
+
+\begin{lstlisting}[language=C]
+struct quux {
+    int i;
+    char c;
+    char s[20];
+    char *p;
+}
+\end{lstlisting}
+
+The \lstinline{c} occurs 4 bytes after the base address (because \lstinline{i} occupies 4 bytes).
+Is there padding between \lstinline{c} and \lstinline{s}?
+No, because \lstinline{s}'s datatype is \lstinline{char}, and so it can start at any address divisible by 1.
+So, \lstinline{s} starts 5 bytes after the base address and occupies 20 bytes.
+Can \lstinline{p} be 25 bytes after the base address?
+No, because \lstinline{p}'s datatype is \lstinline{char*} -- since pointers occupy 8 bytes, \lstinline{p} must be at an address divisible by 8.
+That means that there's 7 bytes of padding after \lstinline{s}, putting \lstinline{p} at 32 bytes after the base address.
+The \lstinline{quux} structure requires 40 bytes.
+
+Note that this structure demonstrates a scenario in which arrays and pointers are not perfectly synonymous.
+Suppose we had this code:
+
+\begin{lstlisting}[language=C]
+    struct quux q;
+    q.p = malloc(20);
+    char t[] = "hello, world!";
+    q.p = strcpy(q.p, t);
+    printf("%s\n", q.p);
+\end{lstlisting}
+
+This code compiles and runs just fine.
+The exact form of the second-to-last line is uncommon: there isn't a need to assign \function{strcpy}'s return pointer to \lstinline{q.p}, but there's no harm in doing so.
+On the other hand:
+
+\begin{lstlisting}[language=C]
+    struct quux q;
+    char t[] = "hello, world!";
+    q.s = strcpy(q.s, t);
+    printf("%s\n", q.s);
+\end{lstlisting}
+
+won't compile at all!
+You cannot make an assignment to \lstinline{s} because it is actually a piece of a structure, and not a pointer to an arbitrary address.
+If we remove the assignment, the code will compile and run without difficulty:
+
+\begin{lstlisting}[language=C]
+    struct quux q;
+    char t[] = "hello, world!";
+    strcpy(q.s, t);
+    printf("%s\n", q.s);
+\end{lstlisting}
+
+Consider compiling and executing the \textit{struct\_alignment.c} program.
+This will print the actual memory addresses of some structures, to demonstrate the presense of padding.
+(If you look at the assembly code to see displacement mode, \lstinline{x} is stored at \lstinline{64(%rsp)}, \lstinline{y} is stored at \lstinline{48(%rsp)}, and \lstinline{z} is stored at \lstinline{16(%rsp)}.)
+
+\section{Conditionals}
+
+\section{Loops}
+
+\section{Function Calls}
+
+\end{document}

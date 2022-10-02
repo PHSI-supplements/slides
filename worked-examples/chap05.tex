@@ -1,0 +1,178 @@
+\documentclass{article}
+\usepackage{amsmath}
+% \usepackage{cancel}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+
+% \pagestyle{fancy}
+% \fancyfoot{}
+% \lfoot{\copyright\ Christopher A. Bohn}
+% %% (c) 2018-22
+% \rfoot{Page \thepage}
+
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \lfoot{\copyright\ Christopher A. Bohn} % (c) 2018-22
+    \rfoot{Page \thepage}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+\pagestyle{plain}
+
+\newcommand{\carry}{\scriptstyle 1}
+
+\begin{document}
+
+\title{Chapter 5 Worked Examples}
+\date{}
+\maketitle
+
+
+\section{Types of Operands}
+
+\subsection{x86 Immediate Values}
+
+\begin{itemize}
+\item In HLL terms, an immediate value is a constant
+\item An \textit{immediate} value is available \textit{immediately} -- it doesn't have to be retrieved from a register, and it doesn't have to be loaded from memory
+\item An immediate value is available immediately because it is encoded directly into an instruction's bytes
+\item example: \$231 or \$0x10
+\end{itemize}
+
+\subsection{x86 Register Content}
+
+\begin{itemize}
+\item In HLL terms, a register is a variable, and its content is the variable's value
+\item example: \%rax or \%r12
+\end{itemize}
+
+\subsection{x86 Memory Location}
+
+\begin{itemize}
+\item If a register contains an address (that is, the variable is a pointer) then dereference it using parentheses
+\item example: (\%rax) or (\%r12)
+\item Can \textunderscore{add} a constant offset, or \textit{displacement}, to the address before dereferencing (``displacement mode'')
+\item example: 32(\%rax) -- takes the address stored in \%rax, adds 32 to it, and dereferences the resulting address
+\item Can create an offset based on the content of another register (``indexed mode'')
+\item example: (\%rax, \%r12) -- takes the address stored in \%rax and the value stored in \%r12, adds them together, and dereferenes the resulting address
+\item example (\%rax, \%r12, 4) -- multiplies the value stored in \%r12 by 4, adds that to the address stored in \%rax, and dereferences the resulting address
+\item Can combine displacement mode and indexed mode
+\item example -4(\%rsp, \%rax, 2) -- multiplies the value stored in \%rax by 2, adds the product to the address stored in \%rsp, adds -4 to the sum, and dereferences the resulting address
+\end{itemize}
+
+
+\section{x86 Addressing, using \texttt{movq}}
+
+\texttt{movq \textit{source}, \textit{destination}}
+
+Most of the following examples make use of this table.
+The left two columns show the contents of some registers,
+and the right two columns show the contents of some memory locations.
+The content of a register might be a value, or it might be an address --
+it depends on how we interpret it (how we use it).
+Similarly, the content of a memory location might be a value, or it might be the address of another memory location.
+
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x04   & 0x3014 & 0x35   \\ \hline
+\%rbx & 0x08   & 0x3010 & 0x20   \\ \hline
+\%rcx & 0x3008 & 0x300C & 0x70   \\ \hline
+\%rdx & 0x34   & 0x3008 & 0x6294 \\ \hline
+\%rsp & 0x3000 & 0x3004 & 0x62A8 \\ \hline
+\%rbp & 0x300C & 0x3000 & 0x35   \\ \hline
+\%rip & 0x6284 & \dots  &        \\ \hline
+\end{tabular}
+
+(We will ``reset'' the table before each example; they are not cumulative.)
+
+
+\subsection{Placing immediate value into a register}
+
+\begin{itemize}
+\item \texttt{movq \$231, \%rdx} -- places \$231 into register \%rex
+\item \texttt{movq \$16, \%rbx} -- places \$16 into register \%rbx
+\item place \$68588 into register \%rbp -- \texttt{movq \$68588, \%rbp}
+\item place \$52 into register \%rax -- \texttt{movq \$52, \%rax}
+\end{itemize}
+
+
+\subsection{Copying content of one register into another register}
+
+\begin{itemize}
+\item \texttt{movq \%rax, \%rbx} -- copies 4 from \%rax into \%rbx (\%rax remains unchanged)
+\item \texttt{movq \%rcx, \%rdx} -- copies 0x3008 from \%rcx into \%rdx (\%rdx remains unchanged)
+\item copy the content of \%rdx into \%rbp -- \texttt{movq \%rdx, \%rbp} -- \%rbp holds 0x34 after the instruction completes (and so does \%rdx)
+\item copy 8 from \%rbx into \%rcx -- \texttt{movq \%rbx, \%rcx}
+\end{itemize}
+
+
+\subsection{Loading memory content into register}
+
+\begin{itemize}
+\item \texttt{movq (\%rcx), \%rax} -- copies 0x6294 from memory location 0x3008 into register \%rax
+\item \texttt{movq 8(\%rbp), \%rbx} -- copies 0x35 from memory location 0x3014 into register \%rbx using displacement mode
+\item copy the content of 0x3010 into \%rdx using indexed mode (one register holds a base address and another register holds an offset) -- \\ \texttt{movq (\%rbp, \%rax), \%rdx} -- \%rdx holds the 0x20 after the instruction completes
+\item copy the content of 0x3010 into \%rdx using scaled indexed mode (one register holds a base address, another register holds a value that is multiplied by a constant $\in \{1,2,4,8\}$ to generate the offset) -- \\ \texttt{movq (\%rsp, \%rcx, 2), \%rdx}
+\end{itemize}
+
+\subsection{Storing register content into memory}
+
+\begin{itemize}
+\item \texttt{movq \%rax, (\%rcx)} -- copies 4 from register \%rax into memory location 0x3008
+\item \texttt{movq \%rbx, 8(\%rbp)} -- copies 8 from register \%rbx into memory location 0x3014 using displacement mode
+\item copy the content \%rdx into 0x3014 using indexed mode -- \texttt{movq \%rdx, (\%rbp, \%rbx)} \textit{or} \texttt{movq \%rdx, (\%rbp, \%rax, 2)}
+    \begin{itemize}
+    \item If the scale could be 3 or 5, there are other options, too -- but the scale cannot be 3 or 5
+    \end{itemize}
+\end{itemize}
+
+\subsection{Other possible and impossible operand combinations}
+
+\begin{itemize}
+\item Can place immediate value into memory
+\item Immedate value cannot be destination
+\item Cannot copy from one memory location to another
+\end{itemize}
+
+\section{x86 Arithmetic}
+
+Given the HLL variables \texttt{d} and \texttt{s}, where \texttt{d}'s value is the content of \textit{destination} and \texttt{s}'s value is the content of \textit{source}:
+
+\texttt{addq \textit{source}, \textit{destination}} $\Leftrightarrow$ \texttt{d += s}
+
+\texttt{subq \textit{source}, \textit{destination}} $\Leftrightarrow$ \texttt{d -= s}
+
+etc.
+
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x04   & 0x3014 & 0x35   \\ \hline
+\%rbx & 0x08   & 0x3010 & 0x20   \\ \hline
+\%rcx & 0x3008 & 0x300C & 0x70   \\ \hline
+\%rdx & 0x34   & 0x3008 & 0x6294 \\ \hline
+\%rsp & 0x3000 & 0x3004 & 0x62A8 \\ \hline
+\%rbp & 0x300C & 0x3000 & 0x35   \\ \hline
+\%rip & 0x6284 & \dots  &        \\ \hline
+\end{tabular}
+
+\subsection{Same operand constraints as \texttt{movq}}
+
+\begin{itemize}
+\item Immediate value can be source but not destination
+\item Register can be source or destination
+\item Memory location can be source or destination, \textit{but\dots}
+\item Cannot have a memory location as the source and also a memory location as the destination
+\end{itemize}
+
+\subsection{Examples}
+
+If \texttt{i}'s value is in \%rax, \texttt{j}'s value is in \%rbx, \texttt{p}'s value is in \%rcx, and \texttt{q}'s value is in \%rbp:
+
+\begin{itemize}
+\item \texttt{subq \%rax, \%rbx} $\Leftrightarrow$ \texttt{j -= i;}
+\item \texttt{p += j;} $\Leftrightarrow$ \texttt{addq \%rbx, \%rcx}
+\item \texttt{addq \%rax, (\%rbp)} $\Leftrightarrow$ \texttt{*q += i;}
+\item \texttt{j -= *p;} $\Leftrightarrow$ \texttt{subq (\%rcx), \%rbx}
+\end{itemize}
+
+\end{document}
