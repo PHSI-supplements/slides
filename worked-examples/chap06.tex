@@ -6,6 +6,7 @@
 \usepackage{hyperref}
 \usepackage[procnames]{listings}
 \lstset{language=C, alsolanguage=[x86masm]Assembler, tabsize=4, upquote=true, basicstyle=\ttfamily}
+\usepackage{xcolor}
 \newcommand{\function}[1]{\textbf{\lstinline{#1}}}
 
 % \pagestyle{fancy}
@@ -108,6 +109,27 @@ What is the address of \lstinline{xyzzy[8]}?
 What is the address of \lstinline{xyzzy[8][3]}?
 
 \textit{Answer:} $0x1\mathrm{A}00 + 3 \times 4 = 0x1\mathrm{A}00 + 0xC = 0x1\mathrm{A}0\textrm{C}$ \\
+
+Here's an example that I plan to include in the textbook's second edition, using a variable-length array:
+\begin{lstlisting}[language=C]
+long foo(long col, int array[][col], long i, long j) {
+    return array[i][j];
+}
+\end{lstlisting}
+
+which produces the assembly code
+\begin{lstlisting}[language={[x86masm]Assembler}]
+foo:
+    imulq   %rdi, %rdx
+    leaq    (%rsi,%rdx,4), %rax
+    movl    (%rax,%rcx,4), %eax
+    ret
+\end{lstlisting}
+
+This is very easy to read.
+First, $i \times col$ is computed by multiplying the contents of \lstinline{\%rdi} and \lstinline{\%rdx}.
+Then that, along with the base address in \lstinline{\%rsi} and the size of an \lstinline{int} (4 bytes) is used to calculate the address of the $i^{th}$ row.
+Finally, scaled-indexed addressing mode is used to retrieve the content of the $j^{th}$ element of that row. \\
 
 \function{nested_array1} from \textit{arrays.c}:
 \begin{lstlisting}[language=C]
@@ -286,5 +308,115 @@ This will print the actual memory addresses of some structures, to demonstrate t
 \section{Loops}
 
 \section{Function Calls}
+
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x04   & 0xF028 & 0x35   \\ \hline
+\%rbx & 0x08   & 0xF020 & 0x20   \\ \hline
+\%rcx & 0xF010 & 0xF018 & 0x70   \\ \hline
+\%rdx & 0x34   & 0xF010 & 0x6294 \\ \hline
+\%rsp & 0xF008 & 0xF008 & 0x62A8 \\ \hline
+\%rbp & 0xF00C & 0xF000 & 0x35   \\ \hline
+\%rip & 0x6283 & \dots  &        \\ \hline
+\end{tabular}
+
+(The following examples are cumulative.)
+
+\textit{What address is the top of the stack?} 0x3008
+
+\subsection{Push/Pop}
+
+\textit{What is the effect of \texttt{pushq \%rbx}?} subtract 8 from \%rsp, and copy the content of \%rbx to the top of the stack \\
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x04   & 0xF028 & 0x35   \\ \hline
+\%rbx & 0x08   & 0xF020 & 0x20   \\ \hline
+\%rcx & 0xF010 & 0xF018 & 0x70   \\ \hline
+\%rdx & 0x34   & 0xF010 & 0x6294 \\ \hline
+\%rsp & \textcolor{red}{0xF000} & 0xF008 & 0x62A8 \\ \hline
+\%rbp & 0xF00C & 0xF000 & \textcolor{red}{0x08}   \\ \hline
+\%rip & \textcolor{blue}{0x6284} & \dots  &        \\ \hline
+\end{tabular} \\
+(the instruction pointer also updates by 1 byte because pushq is a 1-byte instruction -- but that's not the part we're interested in for this example) \\
+
+\textit{What is the effect of \texttt{pop \%rax}?} copy the content at the top of the stack into \%rax, and add 8 to the stack pointer \\
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & \textcolor{red}{0x08}   & 0xF028 & 0x35   \\ \hline
+\%rbx & 0x08   & 0xF020 & 0x20   \\ \hline
+\%rcx & 0xF010 & 0xF018 & 0x70   \\ \hline
+\%rdx & 0x34   & 0xF010 & 0x6294 \\ \hline
+\%rsp & \textcolor{red}{0xF008} & 0xF008 & 0x62A8 \\ \hline
+\%rbp & 0xF00C & 0xF000 & 0x08   \\ \hline
+\%rip & \textcolor{blue}{0x6285} & \dots  &        \\ \hline
+\end{tabular} \\
+
+\textit{What is the effect of \texttt{pop \%rcx}?} copy the content at the top of the stack into \%rcx, and add 8 to the stack pointer \\
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x08   & 0xF028 & 0x35   \\ \hline
+\%rbx & 0x08   & 0xF020 & 0x20   \\ \hline
+\%rcx & \textcolor{red}{0x62A8} & 0xF018 & 0x70   \\ \hline
+\%rdx & 0x34   & 0xF010 & 0x6294 \\ \hline
+\%rsp & \textcolor{red}{0xF010} & 0xF008 & 0x62A8 \\ \hline
+\%rbp & 0xF00C & 0xF000 & 0x08   \\ \hline
+\%rip & \textcolor{blue}{0x6286} & \dots  &        \\ \hline
+\end{tabular} \\
+
+\textit{What is the effect of \texttt{pushq \%rbp}?} subtract 8 from \%rsp, and copy the content of \%rbp to the top of the stack \\
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x08   & 0xF028 & 0x35   \\ \hline
+\%rbx & 0x08   & 0xF020 & 0x20   \\ \hline
+\%rcx & 0x62A8 & 0xF018 & 0x70   \\ \hline
+\%rdx & 0x34   & 0xF010 & 0x6294 \\ \hline
+\%rsp & \textcolor{red}{0xF008} & 0xF008 & \textcolor{red}{0xF00C} \\ \hline
+\%rbp & 0xF00C & 0xF000 & 0x08   \\ \hline
+\%rip & \textcolor{blue}{0x6287} & \dots  &        \\ \hline
+\end{tabular} \\
+
+\subsection{Call/Return}
+
+\textit{What is the effect of \texttt{call 0x63A9 <foo>}?} push the return address onto the stack, and jump to the function foo at address 0x63A9
+
+\textit{What is the return address?} the address of the instruction following the call; on x86-64, that instruction will be at \%rip+5
+
+\textit{Obviously \%rsp is changed because we're pushing the return address onto the stack; what other register is changed?} the target address is loaded into \%rip \\
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x08   & 0xF028 & 0x35   \\ \hline
+\%rbx & 0x08   & 0xF020 & 0x20   \\ \hline
+\%rcx & 0x62A8 & 0xF018 & 0x70   \\ \hline
+\%rdx & 0x34   & 0xF010 & 0x6294 \\ \hline
+\%rsp & \textcolor{red}{0xF000} & 0xF008 & 0xF00C \\ \hline
+\%rbp & 0xF00C & 0xF000 & \textcolor{red}{0x628C}   \\ \hline
+\%rip & \textcolor{red}{0x63A9} & \dots  &        \\ \hline
+\end{tabular} \\
+
+\textit{What is the effect of \texttt{ret}?} pop the return address into the instruction pointer \\
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x08   & 0xF028 & 0x35   \\ \hline
+\%rbx & 0x08   & 0xF020 & 0x20   \\ \hline
+\%rcx & 0x62A8 & 0xF018 & 0x70   \\ \hline
+\%rdx & 0x34   & 0xF010 & 0x6294 \\ \hline
+\%rsp & \textcolor{red}{0xF008} & 0xF008 & 0xF00C \\ \hline
+\%rbp & 0xF00C & 0xF000 & 0x628C   \\ \hline
+\%rip & \textcolor{red}{0x628C} & \dots  &        \\ \hline
+\end{tabular} \\
+
+Suppose that we execute \texttt{pop \%rbp} to get the stack pointer pointing to 0xF010. \\
+\textit{What is the effect of \texttt{ret}?} pop the return address into the instruction pointer \\
+\begin{tabular}{|l|l||l|l|} \hline
+Register & Value & Memory Address & Value \\ \hline
+\%rax & 0x08   & 0xF028 & 0x35   \\ \hline
+\%rbx & 0x08   & 0xF020 & 0x20   \\ \hline
+\%rcx & 0x62A8 & 0xF018 & 0x70   \\ \hline
+\%rdx & 0x34   & 0xF010 & 0x6294 \\ \hline
+\%rsp & \textcolor{red}{0xF018} & 0xF008 & 0xF00C \\ \hline
+\%rbp & 0xF00C & 0xF000 & 0x628C   \\ \hline
+\%rip & \textcolor{red}{0x6294} & \dots  &        \\ \hline
+\end{tabular} \\
+
 
 \end{document}
