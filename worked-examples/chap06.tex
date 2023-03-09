@@ -303,9 +303,468 @@ Consider compiling and executing the \textit{struct\_alignment.c} program.
 This will print the actual memory addresses of some structures, to demonstrate the presense of padding.
 (If you look at the assembly code to see displacement mode, \lstinline{x} is stored at \lstinline{64(%rsp)}, \lstinline{y} is stored at \lstinline{48(%rsp)}, and \lstinline{z} is stored at \lstinline{16(%rsp)}.)
 
+\section*{A quick note about labels and fallthrough}
+
+Before doing any examples of ``compiler cookbook'' recipes, let's address a misconception that, while not \textit{common} is not \textit{un}common, either.
+That has to do with \lstinline{goto} fallthrough.
+
+You might see code such as
+
+\begin{lstlisting}[language=C]
+        if (b) goto foo;
+        xyzzy();
+        ...
+    foo:
+        bar();
+\end{lstlisting}
+
+or, in assembly
+
+\begin{lstlisting}[language={[x86masm]Assembler}]
+        je .L1
+        ...
+    .L1:
+        ...
+\end{lstlisting}
+
+or, perhaps
+
+\begin{lstlisting}[language=C]
+    foo:
+        bar();
+        ...
+    if (b) goto foo;
+        xyzzy();
+\end{lstlisting}
+
+In either case, it's pretty clear that if \lstinline{b} is true then the program jumps to \lstinline{foo} and calls \function{bar()}.
+Otherwise, when \lstinline{b} is false, the program falls through -- it continues without jumping -- and calls \function{xyzzy()}.
+
+You will \textit{never} see code like
+
+\begin{lstlisting}[language=C]
+        if (b) goto foo;
+    foo:
+        quux();
+\end{lstlisting}
+
+It's perfectly legal code, but it doesn't make sense.
+If \lstinline{b} is true then the program jumps to \lstinline{foo} and calls \function{quux()}.
+On the other hand, if \lstinline{b} is false, the program falls through and calls \function{quux()}.
+(\lstinline{foo} is just a label; it's not an executable line of code.)
+
+Remembering this may help students catch themselves if they make a mistake on the exam.
+(No guarantees, but anecdotally, there've been students who insisted their answer was correct, right up until I pointed out that their answer would make the code do the same thing regardless of whether the conditional is true or false.)
+
 \section{Conditionals}
 
+For \lstinline{if} statements, when converting structured C code into \lstinline{goto}-style C code:
+\begin{itemize}
+    \item Negate the \lstinline{if} condition
+    \item Branch \textit{forward}
+    \item The conditional \lstinline{goto} goes to the \lstinline{else} block
+    \item The fallthrough is to the \lstinline{if} block
+    \item At the end of the \lstinline{if} block, jump unconditionally over the \lstinline{else} block
+\end{itemize}
+A mnemonic: ``\textbf{\textit{f}}orward'' over the ``i\textbf{\textit{f}}'' block
+
+For example (from my sample solution for KeyboardLab):
+
+\begin{lstlisting}[language=C]
+    if (is_even(value)) {
+        value = value >> 1;
+    } else {
+        int deduct_one_mask = ~0x1;
+        int difference = value & deduct_one_mask;
+        int five = 0x4 | 0x1;
+        value = difference * five;
+    }
+    position_of_last_digit = value > 0 ? (int) log10(value) : 0;
+    sprintf(value_text, "%d", value);
+\end{lstlisting}
+
+becomes
+
+\begin{lstlisting}[language=C]
+        if (!is_even(value)) goto else;
+        value = value >> 1;
+    else:
+        int deduct_one_mask = ~0x1;
+        int difference = value & deduct_one_mask;
+        int five = 0x4 | 0x1;
+        value = difference * five;
+        goto then;
+    done:
+        position_of_last_digit = value > 0 ? (int) log10(value) : 0;
+        sprintf(value_text, "%d", value);
+\end{lstlisting}
+
+What if there is no \lstinline{else} block?
+There is \textit{always} an \lstinline{else} path out of an \lstinline{if} statement;
+sometimes the \lstinline{else} path is a no-op path.
+
+\begin{lstlisting}[language=C]
+    if (A) {
+        xyzzy();
+    }
+\end{lstlisting}
+
+becomes
+
+\begin{lstlisting}[language=C]
+        if (!A) goto done;
+        xyzzy();
+    done:
+        ...
+\end{lstlisting}
+
+What about \lstinline{else if}?
+Hah!
+Trick question!
+There is no such thing as \lstinline{else if}.
+You only think there is because every textbook about C says that there is.
+
+\begin{lstlisting}[language=C]
+    if (A) {
+        foo();
+    } else if (B) {
+        bar();
+    } else {
+        baz();
+    }
+\end{lstlisting}
+is really
+\begin{lstlisting}[language=C]
+    if (A) {
+        foo();
+    } else {
+        if (B) {
+            bar();
+        } else {
+            baz();
+        }
+    }
+\end{lstlisting}
+which becomes
+\begin{lstlisting}[language=C]
+        if (!A) goto else_1;
+        foo();
+        goto done;
+    else_1:
+        if (!B) goto else_2;
+        bar();
+        goto done;
+    else_2:
+        baz();
+    done:
+        ...
+\end{lstlisting}
+
 \section{Loops}
+
+\subsection{Do Loops}
+
+For \lstinline{do} loops, when converting structured C code into \lstinline{goto}-style C code:
+\begin{itemize}
+    \item Preserve the \lstinline{loop} condition
+    \item Branch \textit{backward}
+    \item The conditional \lstinline{goto} goes to the start of the loop body
+    \item The fallthrough to whatever comes after the loop
+\end{itemize}
+A mnemonic: ``loo\textbf{\textit{p}}'' to a ``\textbf{\textit{p}}revious'' statement.
+
+For example (from my code that generates the tables for LinkedListLab -- you probably don't want to copy \textit{everything}):
+
+\begin{lstlisting}[language=C]
+    // table body
+    const struct node *current_node;
+    current_node = head;
+    do {
+        if (delimiter == '|')
+            printf("%c ", delimiter);
+        printf("%s %c %d %c %s",
+               current_node->word, delimiter, current_node->occurrences,
+               delimiter, respond(head, current_node->word));
+        switch (delimiter) {
+            case '&':
+                printf(" \\\\\n");
+                break;
+            case '|':
+                printf(" %c\n", delimiter);
+                break;
+            default:
+                printf("\n");
+        }
+        current_node = current_node->next;
+    } while (current_node != head);
+    // table footer
+    if (delimiter == '&')
+        printf("\\end{tabular}\n");
+\end{lstlisting}
+\newpage
+becomes
+
+\begin{lstlisting}[language=C]
+        // table body
+        const struct node *current_node;
+        current_node = head;
+    loop:
+        if (delimiter == '|')
+            printf("%c ", delimiter);
+        printf("%s %c %d %c %s",
+               current_node->word, delimiter, current_node->occurrences,
+               delimiter, respond(head, current_node->word));
+        switch (delimiter) {
+            case '&':
+                printf(" \\\\\n");
+                break;
+            case '|':
+                printf(" %c\n", delimiter);
+                break;
+            default:
+                printf("\n");
+        }
+        current_node = current_node->next;
+        if (current_node != head) goto loop;
+        // table footer
+        if (delimiter == '&')
+            printf("\\end{tabular}\n");
+\end{lstlisting}
+\newpage
+Including the ``if'' recipe:
+
+\begin{lstlisting}[language=C]
+        // table body
+        const struct node *current_node;
+        current_node = head;
+    loop:
+        if (delimiter != '|') goto done_printing_left_margin;
+            printf("%c ", delimiter);
+    done_printing_left_margin:
+        printf("%s %c %d %c %s",
+               current_node->word, delimiter, current_node->occurrences,
+               delimiter, respond(head, current_node->word));
+        switch (delimiter) {
+            case '&':
+                printf(" \\\\\n");
+                break;
+            case '|':
+                printf(" %c\n", delimiter);
+                break;
+            default:
+                printf("\n");
+        }
+        current_node = current_node->next;
+        if (current_node != head) goto loop;
+        // table footer
+        if (delimiter != '&') goto done_printing_table_footer;
+            printf("\\end{tabular}\n");
+    done_printing_table_footer:
+        ...
+\end{lstlisting}
+
+\newpage
+\subsection{While Loops as Do Loops with One Unconditional Jump}
+
+The simplest way to create a \lstinline{while} loop is to write it as a \lstinline{do} loop and before entering the loop body, unconditionally jump straight to the loop test.
+
+\begin{lstlisting}[language=C]
+    while (value_text[position_of_last_digit] != '0') {
+        if (is_even(value)) {
+            value = value >> 1;
+        } else {
+            int deduct_one_mask = ~0x1;
+            int difference = value & deduct_one_mask;
+            int five = 0x4 | 0x1;
+            value = difference * five;
+        }
+        position_of_last_digit = value > 0 ? (int) log10(value) : 0;
+        sprintf(value_text, "%d", value);
+    }
+    return value;
+\end{lstlisting}
+
+becomes
+
+\begin{lstlisting}[language=C]
+        ...
+        goto test;
+    loop:
+        if (is_even(value)) {
+            value = value >> 1;
+        } else {
+            int deduct_one_mask = ~0x1;
+            int difference = value & deduct_one_mask;
+            int five = 0x4 | 0x1;
+            value = difference * five;
+        }
+        position_of_last_digit = value > 0 ? (int) log10(value) : 0;
+        sprintf(value_text, "%d", value);
+    test:
+        if (value_text[position_of_last_digit] != '0') goto loop;
+        return value;
+\end{lstlisting}
+
+\newpage
+\subsection{While Loops as Guarded Do Loops}
+
+Alternatively, you can create a \lstinline{while} loop by wrapping a \lstinline{do} loop inside an \lstinline{if} statement.
+
+\begin{lstlisting}[language=C]
+    while (value_text[position_of_last_digit] != '0') {
+        if (is_even(value)) {
+            value = value >> 1;
+        } else {
+            int deduct_one_mask = ~0x1;
+            int difference = value & deduct_one_mask;
+            int five = 0x4 | 0x1;
+            value = difference * five;
+        }
+        position_of_last_digit = value > 0 ? (int) log10(value) : 0;
+        sprintf(value_text, "%d", value);
+    }
+    return value;
+\end{lstlisting}
+
+becomes
+
+\begin{lstlisting}[language=C]
+    // the test condition is repeated in an
+    // `if` statement that surrounds the loop
+    if (value_text[position_of_last_digit] != '0') {
+        do {
+            if (is_even(value)) {
+                value = value >> 1;
+            } else {
+                int deduct_one_mask = ~0x1;
+                int difference = value & deduct_one_mask;
+                int five = 0x4 | 0x1;
+                value = difference * five;
+            }
+            position_of_last_digit = value > 0 ? (int) log10(value) : 0;
+            sprintf(value_text, "%d", value);
+        } while (value_text[position_of_last_digit] != '0');
+    }
+    return value;
+\end{lstlisting}
+\newpage
+which then becomes
+
+\begin{lstlisting}[language=C]
+        if (value_text[position_of_last_digit] == '0') goto done;
+    loop:
+        if (is_even(value)) {
+            value = value >> 1;
+        } else {
+            int deduct_one_mask = ~0x1;
+            int difference = value & deduct_one_mask;
+            int five = 0x4 | 0x1;
+            value = difference * five;
+        }
+        position_of_last_digit = value > 0 ? (int) log10(value) : 0;
+        sprintf(value_text, "%d", value);
+        if (value_text[position_of_last_digit] != '0') goto loop;
+    done:
+        return value;
+\end{lstlisting}
+
+If we apply the ``if'' recipe to the loop body (which we already did several pages ago):
+
+\begin{lstlisting}[language=C]
+        if (value_text[position_of_last_digit] == '0') goto outer_done;
+    loop:
+        if (!is_even(value)) goto inner_else;
+        value = value >> 1;
+        goto inner_done;
+    inner_else:
+        int deduct_one_mask = ~0x1;
+        int difference = value & deduct_one_mask;
+        int five = 0x4 | 0x1;
+        value = difference * five;
+    inner_done:
+        position_of_last_digit = value > 0 ? (int) log10(value) : 0;
+        sprintf(value_text, "%d", value);
+        if (value_text[position_of_last_digit] != '0') goto loop;
+    outer_done:
+        return value;
+\end{lstlisting}
+
+\newpage
+\section{Practice with GOTO-Style Recipes}
+
+\subsection{}
+
+\begin{lstlisting}[language=C]
+    while (i <= 50) {
+        if (3 * i == 4 * j) {
+            i = foo();
+        } else {
+            j = bar();
+        }
+    }
+\end{lstlisting}
+
+becomes
+
+\begin{lstlisting}[language=C]
+        goto __________;
+    L1:
+        if (__________) goto __________;
+        i = foo();
+        goto __________;
+    L2:
+        j = bar();
+    L3:
+        if (__________) goto __________;
+\end{lstlisting}
+
+answer:
+
+This is a ``do loop with one unconditional jump'' that has an \lstinline{if} statement inside the loop
+\begin{lstlisting}[language=C]
+        goto L2;    // jump to loop test
+    L1:
+        if (3 * i != 4 * j) goto L2;    // negate, jump over else
+        i = foo();
+        goto L3;    // jump over else block
+    L2:
+        j = bar();
+    L3:
+        if (i <= 50) goto L1;   // do not negate, jump to start of loop
+\end{lstlisting}
+
+\newpage
+\subsection{}
+
+\begin{lstlisting}[language=C]
+    while (i <= 50) {
+        i = foo();
+    }
+    j = bar();
+\end{lstlisting}
+
+becomes
+
+\begin{lstlisting}[language=C]
+        if (__________) goto __________;
+    L4:
+        i = foo();
+        if (__________) goto __________;
+    L5:
+        j = bar();
+\end{lstlisting}
+
+answer:
+
+This is a ``guarded do-loop'', a do loop that is wrapped inside an \lstinline{if} statement
+\begin{lstlisting}[language=C]
+        if (i > 50) goto L5;    // negate loop condition, jump over loop
+    L4:
+        i = foo();
+        if (i <= 50) goto L4;   // do not negate, jump to start of loop
+    L5:
+        j = bar();
+\end{lstlisting}
 
 \section{Function Calls}
 
