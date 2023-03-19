@@ -4,9 +4,33 @@
 \usepackage{fancyhdr}
 \usepackage{graphicx}
 \usepackage{hyperref}
+%\usepackage{lstlinebgrd}
 \usepackage[procnames]{listings}
 \lstset{language=C, alsolanguage=[x86masm]Assembler, tabsize=4, upquote=true, basicstyle=\ttfamily}
 \usepackage{xcolor}
+
+% https://tex.stackexchange.com/questions/451532/recent-issues-with-lstlinebgrd-package-with-listings-after-the-latters-updates
+\makeatletter
+\let\old@lstKV@SwitchCases\lstKV@SwitchCases
+\def\lstKV@SwitchCases#1#2#3{}
+\makeatother
+\usepackage{lstlinebgrd}
+\makeatletter
+\let\lstKV@SwitchCases\old@lstKV@SwitchCases
+
+\lst@Key{numbers}{none}{%
+    \def\lst@PlaceNumber{\lst@linebgrd}%
+    \lstKV@SwitchCases{#1}%
+    {none:\\%
+    left:\def\lst@PlaceNumber{\llap{\normalfont
+    \lst@numberstyle{\thelstnumber}\kern\lst@numbersep}\lst@linebgrd}\\%
+    right:\def\lst@PlaceNumber{\rlap{\normalfont
+    \kern\linewidth \kern\lst@numbersep
+    \lst@numberstyle{\thelstnumber}}\lst@linebgrd}%
+    }{\PackageError{Listings}{Numbers #1 unknown}\@ehc}}
+\makeatother
+
+
 \newcommand{\function}[1]{\textbf{\lstinline{#1}}}
 
 % \pagestyle{fancy}
@@ -370,7 +394,12 @@ A mnemonic: ``\textbf{\textit{f}}orward'' over the ``i\textbf{\textit{f}}'' bloc
 
 For example (from my sample solution for KeyboardLab):
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+%    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=1 \color{green}\fi,
+    \ifnum\value{lstnumber}=3 \color{green}\fi,
+    \ifnum\value{lstnumber}=8 \color{green}\fi,
+}]
     if (is_even(value)) {
         value = value >> 1;
     } else {
@@ -385,7 +414,12 @@ For example (from my sample solution for KeyboardLab):
 
 becomes
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=1 \color{green}\fi,
+    \ifnum\value{lstnumber}=3 \color{green}\fi,
+    \ifnum\value{lstnumber}=8 \color{green}\fi,
+}]]
         if (!is_even(value)) goto else;
         value = value >> 1;
     else:
@@ -393,7 +427,6 @@ becomes
         int difference = value & deduct_one_mask;
         int five = 0x4 | 0x1;
         value = difference * five;
-        goto then;
     done:
         position_of_last_digit = value > 0 ? (int) log10(value) : 0;
         sprintf(value_text, "%d", value);
@@ -475,7 +508,13 @@ A mnemonic: ``loo\textbf{\textit{p}}'' to a ``\textbf{\textit{p}}revious'' state
 
 For example (from my code that generates the tables for LinkedListLab -- you probably don't want to copy \textit{everything}):
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=4 \color{green}\fi,
+    \ifnum\value{lstnumber}=21 \color{green}\fi,
+    \ifnum\value{lstnumber}=5 \color{yellow}\fi,
+    \ifnum\value{lstnumber}=23 \color{magenta}\fi,
+}]
     // table body
     const struct node *current_node;
     current_node = head;
@@ -504,7 +543,13 @@ For example (from my code that generates the tables for LinkedListLab -- you pro
 \newpage
 becomes
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=4 \color{green}\fi,
+    \ifnum\value{lstnumber}=21 \color{green}\fi,
+    \ifnum\value{lstnumber}=5 \color{yellow}\fi,
+    \ifnum\value{lstnumber}=23 \color{magenta}\fi,
+}]
         // table body
         const struct node *current_node;
         current_node = head;
@@ -533,7 +578,15 @@ becomes
 \newpage
 Including the ``if'' recipe:
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=4 \color{green}\fi,
+    \ifnum\value{lstnumber}=22 \color{green}\fi,
+    \ifnum\value{lstnumber}=5 \color{yellow}\fi,
+    \ifnum\value{lstnumber}=7 \color{yellow}\fi,
+    \ifnum\value{lstnumber}=24 \color{magenta}\fi,
+    \ifnum\value{lstnumber}=26 \color{magenta}\fi,
+}]
         // table body
         const struct node *current_node;
         current_node = head;
@@ -568,7 +621,11 @@ Including the ``if'' recipe:
 
 The simplest way to create a \lstinline{while} loop is to write it as a \lstinline{do} loop and before entering the loop body, unconditionally jump straight to the loop test.
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=1 \color{green}\fi,
+    \ifnum\value{lstnumber}=12 \color{green}\fi,
+}]
     while (value_text[position_of_last_digit] != '0') {
         if (is_even(value)) {
             value = value >> 1;
@@ -586,7 +643,13 @@ The simplest way to create a \lstinline{while} loop is to write it as a \lstinli
 
 becomes
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=2 \color{green}\fi,
+    \ifnum\value{lstnumber}=3 \color{green}\fi,
+    \ifnum\value{lstnumber}=14 \color{green}\fi,
+    \ifnum\value{lstnumber}=15 \color{green}\fi,
+}]
         ...
         goto test;
     loop:
@@ -610,7 +673,11 @@ becomes
 
 Alternatively, you can create a \lstinline{while} loop by wrapping a \lstinline{do} loop inside an \lstinline{if} statement.
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=1 \color{green}\fi,
+    \ifnum\value{lstnumber}=12 \color{green}\fi,
+}]
     while (value_text[position_of_last_digit] != '0') {
         if (is_even(value)) {
             value = value >> 1;
@@ -628,7 +695,13 @@ Alternatively, you can create a \lstinline{while} loop by wrapping a \lstinline{
 
 becomes
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=3 \color{lime}\fi,
+    \ifnum\value{lstnumber}=4 \color{green}\fi,
+    \ifnum\value{lstnumber}=15 \color{green}\fi,
+    \ifnum\value{lstnumber}=16 \color{lime}\fi,
+}]
     // the test condition is repeated in an
     // `if` statement that surrounds the loop
     if (value_text[position_of_last_digit] != '0') {
@@ -650,7 +723,13 @@ becomes
 \newpage
 which then becomes
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=1 \color{lime}\fi,
+    \ifnum\value{lstnumber}=2 \color{green}\fi,
+    \ifnum\value{lstnumber}=13 \color{green}\fi,
+    \ifnum\value{lstnumber}=14 \color{lime}\fi,
+}]
         if (value_text[position_of_last_digit] == '0') goto done;
     loop:
         if (is_even(value)) {
@@ -670,7 +749,17 @@ which then becomes
 
 If we apply the ``if'' recipe to the loop body (which we already did several pages ago):
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[language=C, linebackgroundcolor={
+    %    \ifodd\value{lstnumber}\color{green}\fi
+    \ifnum\value{lstnumber}=1 \color{lime}\fi,
+    \ifnum\value{lstnumber}=2 \color{green}\fi,
+    \ifnum\value{lstnumber}=14 \color{green}\fi,
+    \ifnum\value{lstnumber}=15 \color{lime}\fi,
+    \ifnum\value{lstnumber}=3 \color{pink}\fi,
+    \ifnum\value{lstnumber}=5 \color{pink}\fi,
+    \ifnum\value{lstnumber}=6 \color{pink}\fi,
+    \ifnum\value{lstnumber}=11 \color{pink}\fi,
+}]
         if (value_text[position_of_last_digit] == '0') goto outer_done;
     loop:
         if (!is_even(value)) goto inner_else;
